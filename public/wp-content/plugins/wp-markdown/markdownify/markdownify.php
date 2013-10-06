@@ -202,14 +202,14 @@ class Markdownify {
    * @var array<string>
    */
   var $drop = array(
-    'script',
+    //'script',
     'head',
-    'style',
+   // 'style',
     'form',
     'area',
     'object',
     'param',
-    'iframe',
+    //'iframe',
   );
   /**
    * Markdown indents which could be wrapped
@@ -227,20 +227,23 @@ class Markdownify {
   /**
    * list of chars which have to be escaped in normal text
    * @note: use strings in regex format
+   * @note: WP-shortcode -MD fun 1! Escape underscores only appearing at the ends of words.
+   * @note: WP-shortcode - MD fun 2! [text][text] in HTML is not be escaped. (Could be a shortcode
+   * and won't be valid link: all links from HTML->MD have integer identifier). 
    *
    * @var array
    *
    * TODO: what's with block chars / sequences at the beginning of a block?
    */
   var $escapeInText = array(
-    '([-*_])([ ]{0,2}\1){2,}' => '\\\\$0|', # hr
+    '^([-*_])([ ]{0,2}\1){2,}$' => '\\\\$0', # hr
     '\*\*([^*\s]+)\*\*' => '\*\*$1\*\*', # strong
     '\*([^*\s]+)\*' => '\*$1\*', # em
     '__(?! |_)(.+)(?!<_| )__' => '\_\_$1\_\_', # em
-    '_(?! |_)(.+)(?!<_| )_' => '\_$1\_', # em
+    '\b_(?! |_)(.+)(?!<_| )_' => '\_$1\_', # em Force it to only check at the beginning of words - prevents breaking shortcodes
     '`(.+)`' => '\`$1\`', # code
     '\[(.+)\](\s*\()' => '\[$1\]$2', # links: [text] (url) => [text\] (url)
-    '\[(.+)\](\s*)\[(.*)\]' => '\[$1\]$2\[$3\]', # links: [text][id] => [text\][id\]
+    '\[(.+)\](\s*)\[(\d)\]' => '\[$1\]$2\[$3\]', # links: [text][integer] => [text\][integer]
   );
   /**
    * wether last processed node was a block tag or not
@@ -749,13 +752,20 @@ class Markdownify {
       $this->stack['a'] = array();
     }
     if (!$link_id) {
-      $link_id = count($this->stack['a']) + 1;
       $tag = array(
         'href' => $this->parser->tagAttributes['src'],
-        'linkID' => $link_id,
         'title' => $this->parser->tagAttributes['title']
       );
-      array_push($this->stack['a'], $tag);
+      if ($this->parent() == 'a') {
+          // when we are inside an a tag, we must not mess up the stack
+          $link_id = count($this->stack['a']);
+          $tag['linkID'] = $link_id;
+          array_splice($this->stack['a'], -1, 0, array($tag));
+      } else {
+          $link_id = count($this->stack['a']) + 1;
+          $tag['linkID'] = $link_id;
+          array_push($this->stack['a'], $tag);
+      }
     }
 
     $this->out('!['.$this->parser->tagAttributes['alt'].']['.$link_id.']', true);
@@ -805,7 +815,7 @@ class Markdownify {
   function handleTag_pre() {
     if ($this->keepHTML && $this->parser->isStartTag) {
       # check if a simple <code> follows
-      if (!preg_match("#^\s*<code\s*>#Us", $this->parser->html)) {
+      if (!preg_match('#^\s*<code\s*>#Us', $this->parser->html)) {
         # this is no standard markdown code block
         $this->handleTagToText();
         return;
@@ -902,8 +912,7 @@ class Markdownify {
    * @return void
    */
   function handleTag_br() {
-    //$this->out("  \n".$this->indent, true);
-	$this->out("<br>",true);
+    $this->out("  \n".$this->indent, true);
     $this->parser->html = ltrim($this->parser->html);
   }
   /**
@@ -991,7 +1000,7 @@ class Markdownify {
    * @return void
    */
   function out($put, $nowrap = false) {
-    if (empty($put)) {
+  	if ( $put !== '0' && empty( $put ) ) {
       return;
     }
     if (!empty($this->buffer)) {
