@@ -1,3 +1,7 @@
 .vagrant
 initial.sql
 wp-config-local.php
+public/wp-content/blogs.dir/
+public/wp-content/cache/
+public/wp-content/uploads/
+public/wp-content/w3tc-config/
