@@ -1,15 +1,13 @@
 <?php
 
 // Class of Google AdSense functions
-class adsns
-{
+class adsns {
 	var $page_title;  // title for options page
 	var $menu_title;  // name in menu
 	var $adsns_options;
 	 
 	// Constructor
-	function adsns(){
-
+	function adsns() {
 		$this->adsns_options = get_option( 'adsns_settings' );
 		$this->adsns_options['code'] = stripslashes( $this->adsns_options['code'] );
 		$this->adsns_options['num_show'] = 0;
@@ -45,7 +43,8 @@ class adsns
 	function adsns_end_home_post_ad( $content ) {
 		global $adsns_count;
 		if ( $adsns_count < $this->adsns_options[ 'max_ads' ] && $adsns_count < $this->adsns_options['max_homepostads'] ) {
-			if( ! is_feed() && is_home() ) {
+			if( ! is_feed() && ( is_home() || is_front_page() ) ) {
+		//	if( ! is_feed() && is_home() ) {
 				$this->adsns_donate();		// Calling a donate function
 				$content .= '<div class="ads">' . $this->adsns_options['code'] . '</div>';
 				$this->adsns_options['num_show'] ++;  // Counting views
@@ -70,7 +69,7 @@ class adsns
 	// Add 'BWS Plugins' menu at the left side in administer panel
 	function adsns_add_admin_menu() {
 		add_menu_page( 'BWS Plugins', 'BWS Plugins', 'manage_options', 'bws_plugins', 'bws_add_menu_render', plugins_url( "images/px.png", __FILE__ ), 1001 ); 
-		add_submenu_page( 'bws_plugins', __( 'AdSense Options', 'adsense'), __( 'AdSense', 'adsense' ), 'manage_options', "adsense-plugin.php", array( $this, 'adsns_settings_page' ) );
+		add_submenu_page( 'bws_plugins', __( 'AdSense Settings', 'adsense'), __( 'AdSense', 'adsense' ), 'manage_options', "adsense-plugin.php", array( $this, 'adsns_settings_page' ) );
 	}
 
 	// Add a link for settings page
@@ -85,17 +84,17 @@ class adsns
 
 	function adsns_register_plugin_links($links, $file) {
 		global $this_adsns_plugin;
-		if ($file == $this_adsns_plugin) {
+		if ( $file == $this_adsns_plugin ) {
 			$links[] = '<a href="admin.php?page=adsense-plugin.php">' . __( 'Settings', 'adsense' ) . '</a>';
 			$links[] = '<a href="http://wordpress.org/extend/plugins/adsense-plugin/faq/" target="_blank">' . __( 'FAQ', 'adsense' ) . '</a>';
-			$links[] = '<a href="Mailto:plugin@bestwebsoft.com">' . __( 'Support', 'adsense' ) . '</a>';
+			$links[] = '<a href="http://support.bestwebsoft.com">' . __( 'Support', 'adsense' ) . '</a>';
 		}
 		return $links;
 	}
 
 	// Creating a default options for showing ads. Starts on plugin activation.
 	function adsns_activate()	{
-		global $adsns_options, $count, $current_count, $adsns_count, $max_ads;		
+		global $wpmu, $adsns_options, $count, $current_count, $adsns_count, $max_ads;		
 		$new_options = array(
 			'num_show' => '0',
 			'donate' => '0',
@@ -132,19 +131,25 @@ class adsns
 						</script><input type="hidden" value="Version: 1.11" />',
 			'widget_title' => ''
 		);
-		if( ! get_option( 'adsns_settings' ) )
-			add_option( 'adsns_settings', $new_options, '', 'yes' );
 
+		if ( 1 == $wpmu ) {
+			if ( ! get_site_option( 'adsns_settings' ) ) {
+				add_site_option( 'adsns_settings', $new_options, '', 'yes' );
+			}
+		} else {
+			if ( ! get_option( 'adsns_settings' ) )
+				add_option( 'adsns_settings', $new_options, '', 'yes' );
+		}
+		
 		$count = 0; 							//current number of showed ads
 		$current_count = 0; 					// tmp var for storing a number of already showed ads
 		$adsns_count = 0; 						// number of posts on home page
-		if( $adsns_options = get_option( 'adsns_sets' ) ) {
-			unset( $adsns_options['code2'] );
-			add_option( 'adsns_settings', $adsns_options );
-			delete_option( 'adsns_sets' );
-		}
 
-		$adsns_options = get_option( 'adsns_settings' );
+		if ( 1 == $wpmu )
+			$adsns_options = get_site_option( 'adsns_settings' ); 
+		else
+			$adsns_options = get_option( 'adsns_settings' );
+
 		$adsns_options = array_merge( $new_options, $adsns_options );
 		update_option( 'adsns_settings', $adsns_options );
 
@@ -174,8 +179,7 @@ class adsns
 						</script><script type="text/javascript" src="http://pagead2.googlesyndication.com/pagead/show_ads.js"></script><input type="hidden" value="Version: 1.11" />';	
 			$this->adsns_options['code'] = $don_code;
 			//update_option( 'adsns_settings', $this->adsns_options );
-		}
-		else {
+		} else {
 			if( $this->adsns_options['adtype'] == 'ad_unit' ) {
 				if($this->adsns_options['adtypeselect'] == 'default_image')
 					$adtypeselect = 'default';
@@ -195,18 +199,16 @@ class adsns
 							$type = 'google_ad_type = "text";';
 							break;
 				}
-			}
-			else {
+			} else {
 				$dimensions = explode( "x", $this->adsns_options[ $this->adsns_options['adtype'] ] );  // Calculating dimensions of ad block
 				$format = $this->adsns_options[ $this->adsns_options['adtype'] ];
 				$format .= '_0ads_al';
 				$type = '';
 			}
 
-			if( 'none' == $this->adsns_options['corner_style'] ){
+			if ( 'none' == $this->adsns_options['corner_style'] ) {
 				$features = '';
-			} 
-			else{
+			} else {
 				$features = 'google_ui_features = "rc:'.$this->adsns_options['corner_style'].'";';
 			}
 			$this->adsns_options['donate_width'] = $dimensions[0];		// Width
@@ -236,7 +238,7 @@ class adsns
 	// Saving settings
 	function adsns_settings_page(){
 		// Run once
-		if( ! $adsns_options = get_option( 'adsns_settings' ) ){
+		if ( ! $adsns_options = get_option( 'adsns_settings' ) ){
 				$this->adsns_activate();
 		}
 		echo '
@@ -248,62 +250,48 @@ class adsns
 		if ( isset( $_REQUEST['adsns_update'] ) && check_admin_referer( plugin_basename(__FILE__), 'adsns_nonce_name' )  ) { ### if click on Save Changes button
 
 			if ( strlen( $_REQUEST['client_id'] ) > 0 ) {
-				echo "<div class='updated'><p>".__( "Options saved.", 'adsense' )."</p></div>";
+				echo "<div class='updated'><p>".__( "Settings saved", 'adsense' )."</p></div>";
 				if ( isset( $_REQUEST['client_id'] ) ) { ## client
 					$this->adsns_options['clientid'] = $_REQUEST['client_id'];					
 				}
-
 				if ( isset( $_REQUEST['mycode'] ) ) { ## ad code
 					$id = stripslashes( $_REQUEST['mycode'] );
 					if ( strlen( $id ) > 0 ) {
 						//$this->adsns_options['code'] = $id;
 					}
-				}
-	 
+				}	 
 				if ( isset( $_REQUEST['homeAds'] ) ) { ## select
 					$this->adsns_options['max_homepostads'] = $_REQUEST['homeAds'];				
-				}
-				
+				}				
 				if ( isset( $_REQUEST['adtypeselect'] ) ) { ## adtypeselect
 					$this->adsns_options['adtypeselect'] = $_REQUEST['adtypeselect'];								
-				}
-				else {
+				} else {
 					$this->adsns_options['adtypeselect'] = '';	
-				}
-				
+				}				
 				if ( isset( $_REQUEST['default'] ) ) { ## format
 					$this->adsns_options['default'] = $_REQUEST['default'];		
-				}
-				else {
+				} else {
 					$this->adsns_options['default'] = '';	
 				}
-
 				if ( isset( $_REQUEST['image_only'] ) ) { ## format
 					$this->adsns_options['image_only'] = $_REQUEST['image_only'];	
-				}
-				else {
+				} else {
 					$this->adsns_options['image_only'] = '';	
-				}
-				
+				}				
 				if ( isset( $_REQUEST['link_unit'] ) ) { ## format
 					$this->adsns_options['link_unit'] = $_REQUEST['link_unit'];	
-				}
-				else {
+				} else {
 					$this->adsns_options['link_unit'] = '';	
-				}
-				
+				}				
 				if ( isset( $_REQUEST['adtype'] ) ) { ## adtype
 					$this->adsns_options['adtype'] = $_REQUEST['adtype'];		
-				}
-				
+				}				
 				if ( isset( $_REQUEST['corner_style'] ) ) { ## corner_style
 					$this->adsns_options['corner_style'] = $_REQUEST['corner_style'];
-				}
-				
+				}				
 				if ( isset( $_REQUEST['pallete'] ) ) { ## pallete
 					$this->adsns_options['pallete'] = $_REQUEST['pallete'];	
-				}
-				
+				}				
 				if ( isset( $_REQUEST['border'] ) ) { ## border
 					$this->adsns_options['border'] = $_REQUEST['border'];		
 				}
@@ -318,8 +306,7 @@ class adsns
 				}
 				if ( isset( $_REQUEST['url'] ) ) { ## url
 					$this->adsns_options['url'] = $_REQUEST['url'];		
-				}
-				
+				}				
 				if ( isset( $_REQUEST['position'] ) ) { ## position
 					$this->adsns_options['position'] = $_REQUEST['position'];	
 				}
@@ -327,11 +314,12 @@ class adsns
 				if ( isset( $_REQUEST['donate'] ) ) { ## donate
 					$this->adsns_options['donate'] = $_REQUEST['donate'];	
 				}
-				if( $this->adsns_options['adtype'] == 'ad_unit' ) {
-					if($this->adsns_options['adtypeselect'] == 'default_image')
+				if ( $this->adsns_options['adtype'] == 'ad_unit' ) {
+					if ( $this->adsns_options['adtypeselect'] == 'default_image' )
 						$adtypeselect = 'default';
 					else 
 						$adtypeselect = $this->adsns_options['adtypeselect'];
+
 					$dimensions = explode( "x", $this->adsns_options[ $adtypeselect ] );  // Calculating dimensions of ad block
 					$format = $this->adsns_options[ $adtypeselect ];
 					$format .= '_as';
@@ -346,8 +334,7 @@ class adsns
 								$type = 'google_ad_type = "text";';
 								break;
 					}
-				}
-				else {
+				} else {
 					$dimensions = explode( "x", $this->adsns_options[ $this->adsns_options['adtype'] ] );  // Calculating dimensions of ad block
 					$format = $this->adsns_options[ $this->adsns_options['adtype'] ];
 					$format .= '_0ads_al';
@@ -382,20 +369,21 @@ class adsns
 		static $sp_nonce_flag = false;
 
 		$this->adsns_options = get_option( 'adsns_settings' );
-		?>
-  	
+		?>  	
 		<form id="option" name="option" action="" method="post">
 			<div class="settings_head"> 
 				<label for="color"> <?php _e( 'Network', 'adsense' ); ?> </label>
 			</div>
 			<div class="settings_body" id="network">
-				<label for="client_id" class="left" ><?php _e( 'Publisher  ID:', 'adsense' ); ?></label>
+				<label for="client_id" class="left" ><?php _e( 'Publisher ID:', 'adsense' ); ?></label>
 				<div class="right">
-					<input type="hidden" id="client_id_val" name="client_id_val" value="<?php echo $this->adsns_options['clientid'] ?>" />
+					pub_<input type="hidden" id="client_id_val" name="client_id_val" value="<?php echo $this->adsns_options['clientid'] ?>" />
 					<input type="text" id="client_id" name="client_id" class ="positive-integer" size="20" maxlength="16" value="<?php echo $this->adsns_options['clientid'] ?>" />
 					<br />
 					<div style="width: 250px; padding-left: 2px;">
-						<span class="description"><?php _e( 'Publisher ID is the unique identifer of', 'adsense' ); ?> <a href="https://www.google.com/adsense"><?php _e( 'your account', 'adsense' ); ?></a> <?php _e( 'at Google AdSense.', 'adsense' ); ?></span>
+						<span class="description"><?php _e( 'You should enter only digits here.', 'adsense' ); ?></span><br/>
+						<span class="description"><?php _e( '(For example: 1234567891234567)', 'adsense' ); ?></span><br/>
+						<span class="description"><?php _e( 'Publisher ID is a unique identifier of', 'adsense' ); ?> <a href="https://www.google.com/adsense"><?php _e( 'your account', 'adsense' ); ?></a> <?php _e( 'in Google AdSense.', 'adsense' ); ?></span>
 					</div>
 				</div>
 			</div>
@@ -408,7 +396,7 @@ class adsns
 				<div class="right">
 					<input type="hidden" id="adtype_val" value="<?php echo $this->adsns_options['adtype'] ?>">
 					<input type="radio" name="adtype" id="ad_type1" value="ad_unit" <?php if( $this->adsns_options['adtype'] == 'ad_unit' || $this->adsns_options['adtype'] == 'adunit') echo 'checked="checked"'; ?>/>
-					<label for="ad_type1"><?php _e( 'Ad unit', 'adsense' ); ?></label>
+					<label for="ad_type1"><?php _e( 'Ad block', 'adsense' ); ?></label>
 					<input type="hidden" id="adtypesel_val" value="<?php echo $this->adsns_options['adtypeselect'] ?>">					
 					<select id="adtypeselect" name ="adtypeselect" style="width: 168px; margin-left: 10px;">
 						<option value="default_image" <?php if( $this->adsns_options['adtypeselect'] == 'default_image' || $this->adsns_options['adtypeselect'] == 'text_image') echo 'selected="selected"'; ?>><?php _e( 'Text and image ads', 'adsense' ); ?></option>
@@ -417,7 +405,7 @@ class adsns
 					</select>
 					<br />
 					<input type="radio" name="adtype" id="ad_type2" value="link_unit" <?php if( $this->adsns_options['adtype'] == 'link_unit' ) echo 'checked="checked"'; ?>/>
-					<label for="ad_type2"><?php _e( 'Link unit', 'adsense' ); ?></label>
+					<label for="ad_type2"><?php _e( 'Block of links', 'adsense' ); ?></label>
 				</div>
 				<br />
 				
@@ -466,7 +454,7 @@ class adsns
 						</select>
 					</div>
 
-					<div id="lnk_unit" <?php if($this->adsns_options['adtype'] == 'link_unit' ) echo 'style="visibility: visible;margin-top: -28px"'; else echo 'style="visibility: hidden;margin-top: -28px"'; ?> class="right">
+					<div id="lnk_unit" <?php if ( $this->adsns_options['adtype'] == 'link_unit' ) echo 'style="visibility: visible;margin-top: -28px"'; else echo 'style="visibility: hidden;margin-top: -28px"'; ?> class="right">
 						<input type="hidden" id="link_unit_val" value="<?php echo $this->adsns_options['link_unit'] ?>">
 						<select id="link_unit" name="link_unit">
 							<optgroup label="Horizontal">
@@ -485,18 +473,18 @@ class adsns
 			</div>
 							
 			<div class="settings_head">
-				<label for="position"><?php _e( 'Position &amp; Numbers of Ads', 'adsense' ); ?></label>
+				<label for="position"><?php _e( 'Position &amp; amount of ads', 'adsense' ); ?></label>
 			</div>
 			<div class="settings_body" id="pos_num">
 				<label for="position" class="left"><?php _e( 'Position:', 'adsense' ); ?></label>
 				<div class="right">
 					<input type="hidden" id="position_val" value="<?php echo $this->adsns_options['position'] ?>">
 					<select name="position" id="position">
-						<option value="postend" <?php if( $this->adsns_options['position'] == 'postend' ) echo 'selected="selected"'; ?>><?php _e( 'After post text (Single post page)', 'adsense' ); ?></option>
-						<option value="homepostend" <?php if( $this->adsns_options['position'] == 'homepostend' ) echo 'selected="selected"'; ?>><?php _e( 'After post text (Home page)', 'adsense' ); ?></option>
-						<option value="homeandpostend" <?php if( $this->adsns_options['position'] == 'homeandpostend' ) echo 'selected="selected"'; ?>><?php _e( 'After post text (Single post page and Home page)', 'adsense' ); ?></option>
-						<option value="commentform" <?php if( $this->adsns_options['position'] == 'commentform' ) echo 'selected="selected"'; ?>><?php _e( 'After comment form', 'adsense' ); ?></option>
-						<option value="footer" <?php if( $this->adsns_options['position'] == 'footer' ) echo 'selected="selected"'; ?>><?php _e( 'Before footer', 'adsense' ); ?></option>
+						<option value="postend" <?php if( $this->adsns_options['position'] == 'postend' ) echo 'selected="selected"'; ?>><?php _e( 'Below the post (Single post page)', 'adsense' ); ?></option>
+						<option value="homepostend" <?php if( $this->adsns_options['position'] == 'homepostend' ) echo 'selected="selected"'; ?>><?php _e( 'Below the post (Home page)', 'adsense' ); ?></option>
+						<option value="homeandpostend" <?php if( $this->adsns_options['position'] == 'homeandpostend' ) echo 'selected="selected"'; ?>><?php _e( 'Below the post (Single post page and Home page)', 'adsense' ); ?></option>
+						<option value="commentform" <?php if( $this->adsns_options['position'] == 'commentform' ) echo 'selected="selected"'; ?>><?php _e( 'Below the comment form', 'adsense' ); ?></option>
+						<option value="footer" <?php if( $this->adsns_options['position'] == 'footer' ) echo 'selected="selected"'; ?>><?php _e( 'Above the footer', 'adsense' ); ?></option>
 					</select>
 				</div>
 				<br />
@@ -505,13 +493,13 @@ class adsns
 				<div class="right">
 					<input type="hidden" id="homeads_val" name="homeads_val" value="<?php echo $this->adsns_options['max_homepostads'] ?>" />		
 					<select name="homeAds" id="homeAds" style="width: 40px;" />
-						<option value="1" <?php if( $this->adsns_options['homeAds'] == '1' ) echo 'selected="selected"'; ?>>1</option>
-						<option value="2" <?php if( $this->adsns_options['homeAds'] == '2' ) echo 'selected="selected"'; ?>>2</option>
-						<option value="3" <?php if( $this->adsns_options['homeAds'] == '3' ) echo 'selected="selected"'; ?>>3</option>
+						<option value="1" <?php if ( isset( $this->adsns_options['homeAds'] ) && $this->adsns_options['homeAds'] == '1' ) echo 'selected="selected"'; ?>>1</option>
+						<option value="2" <?php if ( isset( $this->adsns_options['homeAds'] ) && $this->adsns_options['homeAds'] == '2' ) echo 'selected="selected"'; ?>>2</option>
+						<option value="3" <?php if ( isset( $this->adsns_options['homeAds'] ) && $this->adsns_options['homeAds'] == '3' ) echo 'selected="selected"'; ?>>3</option>
 					</select> 
 				</div>
 				<div style="width: 265px; padding-left: 2px;">
-					<span class="description"><?php _e( 'Number of ads after post text on your home page.', 'adsense' ); ?></span>
+					<span class="description"><?php _e( 'Number of ads below the posts on the home page.', 'adsense' ); ?></span>
 				</div>
 			</div>
 				
@@ -519,7 +507,7 @@ class adsns
 				<label for="color"> <?php _e( 'Visualisation', 'adsense' ); ?> </label>
 			</div>
 			<div class="settings_body" id="visual">
-				<label for="Border" class="left"><?php _e( 'Color:', 'adsense' ); ?></label>
+				<label for="Border" class="left"><?php _e( 'Colors:', 'adsense' ); ?></label>
 				<input type="hidden" id="border_val" value="<?php echo $this->adsns_options['border'] ?>">
 				<input type="hidden" id="title_val" value="<?php echo $this->adsns_options['title'] ?>">
 				<input type="hidden" id="background_val" value="<?php echo $this->adsns_options['background'] ?>">
@@ -595,7 +583,7 @@ class adsns
 					</select>
 				</div>
 				<div style="width: 250px; padding-left: 2px;">
-					<span class="description"><?php _e( 'This is a standard Google color palette.', 'adsense' ); ?></span>
+					<span class="description"><?php _e( 'These are the standard Google color palettes.', 'adsense' ); ?></span>
 				</div>
 				<br />
 				
@@ -603,29 +591,29 @@ class adsns
 				<div class="right">
 					<input type="hidden" id="corner_style_val" value="<?php echo $this->adsns_options['corner_style'] ?>">
 					<select name="corner_style" id="corner_style">
-						<option value="none" <?php if( 'none' == $this->adsns_options['corner_style'] ) echo 'selected="selected"';?>> <?php _e( 'Select corner style', 'adsense' ); ?> </option>
+						<option value="none" <?php if( 'none' == $this->adsns_options['corner_style'] ) echo 'selected="selected"';?>> <?php _e( 'Select a corner style', 'adsense' ); ?> </option>
 						<option value="0" <?php if( '0' == $this->adsns_options['corner_style'] ) echo 'selected="selected"';?>> <?php _e( 'Square corners', 'adsense' ); ?> </option>
 						<option value="6" <?php if( '6' == $this->adsns_options['corner_style'] ) echo 'selected="selected"';?>> <?php _e( 'Slightly rounded corners', 'adsense' ); ?> </option>
-						<option value="10" <?php if( '10' == $this->adsns_options['corner_style'] ) echo 'selected="selected"';?>> <?php _e( 'Very rounded corners', 'adsense' ); ?> </option>
+						<option value="10" <?php if( '10' == $this->adsns_options['corner_style'] ) echo 'selected="selected"';?>> <?php _e( 'Rounded corners', 'adsense' ); ?> </option>
 					</select>
 				</div>
 				<div style="width: 250px; padding-left: 2px;">
-					<span class="description"><?php _e( 'Corner style property will help you to make your Ad rounded corners.', 'adsense' ); ?></span>
+					<span class="description"><?php _e( 'Corner style property will help you to make your Ad corners rounded.', 'adsense' ); ?></span>
 				</div>
 			</div>
 			
 			<div class="settings_head">
-				<label for="position"><?php _e( 'Donate', 'adsense' ); ?></label>
+				<label for="position"><?php _e( 'Donations', 'adsense' ); ?></label>
 			</div>
 			<div class="settings_body" id="donate_menu">
-				<label for="donate" class="left"><?php _e( 'Donate us:', 'adsense' ); ?></label>
+				<label for="donate" class="left"><?php _e( 'Donate:', 'adsense' ); ?></label>
 				<div class="right">
 					<input type="hidden" id="donate_val" value="<?php echo $this->adsns_options['donate'] ?>">
 					<input type="text" id="donate" size="2" maxlength="2" name="donate" style="padding-left: 10px; padding-right: 10px; text-align: center;" value="<?php echo $this->adsns_options['donate'] ?>" />%
 					<br />
 					<span class="description"><?php _e( 'Support us by Donating Ad Space.', 'adsense' ); ?></span>
 					<br />
-					<span class="description"><?php _e( 'Input percentage of ad slots to share [Default: 0%].', 'adsense' ); ?></span>
+					<span class="description"><?php _e( 'Please enter a percentage value of the ad slots you are ready to share [Default: 0%].', 'adsense' ); ?></span>
 				</div>
 			</div>
 
@@ -636,7 +624,7 @@ class adsns
 				<div id="ads_generate"></div>
 			</div>
 			<div style="margin-top: 25px;" >
-				<input type="submit" class="button-primary" name="adsns_update" id="adsns_update" value="<?php _e('Save Changes') ?>" />
+				<input type="submit" class="button-primary" name="adsns_update" id="adsns_update" value="<?php _e( 'Save Changes', 'adsense' ) ?>" />
 			</div>
 				<?php wp_nonce_field( plugin_basename(__FILE__), 'adsns_nonce_name' ); ?>
 		</form>		
@@ -644,8 +632,11 @@ class adsns
 	}
 
 	// Including scripts and stylesheets for admin interface of plugin
-	public function adsns_write_admin_head(){
-		if( (is_admin() ) && (isset($_GET['page'])) && ($_GET['page'] == "adsense-plugin.php") ) {
+	public function adsns_write_admin_head() {
+		wp_register_style( 'adsnsStylesheet', plugins_url( 'css/style.css' , __FILE__ ) );
+		wp_enqueue_style( 'adsnsStylesheet' );
+
+		if ( (is_admin() ) && ( isset( $_GET['page'] ) ) && ( $_GET['page'] == "adsense-plugin.php") ) {
 			wp_register_script( 'adsns_admin_script', plugins_url( 'js/admin.js' , __FILE__ ) );
 			wp_register_script( 'adsns_numeric_script', plugins_url( 'js/numeric.js' , __FILE__ ) );
 			wp_register_script( 'adsns_farbtastic_script', plugins_url( 'farbtastic/farbtastic.js' , __FILE__ ) );
@@ -655,10 +646,10 @@ class adsns
 			wp_enqueue_script( 'adsns_farbtastic_script' );
 			
 			wp_register_style( 'adsnsFarbtasticStylesheet', plugins_url( 'farbtastic/farbtastic.css' , __FILE__ ) ) ;
-			wp_enqueue_style( 'adsnsFarbtasticStylesheet' );
-			wp_register_style( 'adsnsStylesheet', plugins_url( 'css/style.css' , __FILE__ ) );
-			wp_enqueue_style( 'adsnsStylesheet' );
+			wp_enqueue_style( 'adsnsFarbtasticStylesheet' );			
 		}
+		if ( isset( $_GET['page'] ) && $_GET['page'] == "bws_plugins" )
+			wp_enqueue_script( 'bws_menu_script', plugins_url( 'js/bws_menu.js' , __FILE__ ) );
 	}
 	
 	// Stylesheets for ads
@@ -670,7 +661,7 @@ class adsns
 			text-align: center;		
 			clear: both;
 		}
-		</style>
+		</style>		
 EOF;
 	}
 
@@ -683,7 +674,7 @@ EOF;
 		$this->adsns_options = get_option( 'adsns_settings' );
 		$title = $this->adsns_options['widget_title'];
 		echo '<li class="widget-container"><h3 class="widget-title">'.$title.'</h3>';
-		if( $adsns_count < $this->adsns_options[ 'max_ads' ] ){ 
+		if ( $adsns_count < $this->adsns_options[ 'max_ads' ] ) { 
 			$this->adsns_donate();
 			echo '<div class="ads">' . $this->adsns_options['code'] . '</div>';
 			$this->adsns_options['num_show']++;
