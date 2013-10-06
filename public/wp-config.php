@@ -14,7 +14,14 @@
  * @package WordPress
  */
 
-define( 'WP_ALLOW_MULTISITE', true );
+define('WP_ALLOW_MULTISITE', true);
+define('MULTISITE', true);
+define('SUBDOMAIN_INSTALL', false);
+$base = '/';
+define('DOMAIN_CURRENT_SITE', 'www.keck-warren.com');
+define('PATH_CURRENT_SITE', '/');
+define('SITE_ID_CURRENT_SITE', 1);
+define('BLOG_ID_CURRENT_SITE', 1);
 
 // ** MySQL settings - You can get this info from your web host ** //
 
