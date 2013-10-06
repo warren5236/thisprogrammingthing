@@ -14,6 +14,8 @@
  * @package WordPress
  */
 
+define( 'WP_ALLOW_MULTISITE', true );
+
 // ** MySQL settings - You can get this info from your web host ** //
 
 if(is_file('../../wp-config-local.php')){
