@@ -2,7 +2,7 @@
 
 class Red_Action
 {
-	function Red_Action ($values)
+	function __construct ($values)
 	{
 		if (is_array ($values))
 		{
@@ -15,9 +15,9 @@ class Red_Action
 
 	function config () { }
 
-	function create ($name, $code)
+	static function create ($name, $code)
 	{
-		$avail = Red_Action::available ();
+		$avail = self::available ();
 		if (isset ($avail[$name]))
 		{
 			if (!class_exists (strtolower ($avail[$name][1])))
@@ -31,7 +31,7 @@ class Red_Action
 		return false;
 	}
 
-	function available ()
+	static function available ()
 	{
 	 	return array
 		(

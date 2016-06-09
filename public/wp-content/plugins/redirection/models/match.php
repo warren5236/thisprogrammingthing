@@ -1,34 +1,15 @@
 <?php
-/**
- * Redirection
- *
- * @package Redirection
- * @author John Godley
- * @copyright Copyright( C ) John Godley
- **/
-
-/*
-============================================================================================================
-This software is provided "as is" and any express or implied warranties, including, but not limited to, the
-implied warranties of merchantibility and fitness for a particular purpose are disclaimed. In no event shall
-the copyright owner or contributors be liable for any direct, indirect, incidental, special, exemplary, or
-consequential damages( including, but not limited to, procurement of substitute goods or services; loss of
-use, data, or profits; or business interruption ) however caused and on any theory of liability, whether in
-contract, strict liability, or tort( including negligence or otherwise ) arising in any way out of the use of
-this software, even if advised of the possibility of such damage.
-
-For full license details see license.txt
-============================================================================================================ */
 
 class Red_Match {
 	var $url;
 
-	function Red_Match( $values = '' ) {
+	function __construct( $values = '' ) {
 		if ( $values ) {
-			$obj = @unserialize( $values );
-			if ( $obj === false )
-				$this->url = $values;
-			else {
+			$this->url = $values;
+
+			$obj = maybe_unserialize( $values );
+
+			if ( is_array( $obj ) ) {
 				foreach ( $obj AS $key => $value ) {
 					$this->$key = $value;
 				}
@@ -61,11 +42,11 @@ class Red_Match {
 	}
 
 	function get_target( $url, $matched_url, $regex ) {
-		return $false;
+		return false;
 	}
 
-	function create( $name, $data = '' ) {
-		$avail = Red_Match::available();
+	static function create( $name, $data = '' ) {
+		$avail = self::available();
 		if ( isset( $avail[strtolower( $name )] ) ) {
 			$classname = $name.'_match';
 
@@ -77,23 +58,23 @@ class Red_Match {
 		return false;
 	}
 
-	function all() {
+	static function all() {
 		$data = array();
 
-		$avail = Red_Match::available();
+		$avail = self::available();
 		foreach ( $avail AS $name => $file ) {
-			$obj = Red_Match::create( $name );
+			$obj = self::create( $name );
 			$data[$name] = $obj->name();
 		}
 
 		return $data;
 	}
 
-	function available() {
+	static function available() {
 	 	return array (
 			'url'      => 'url.php',
 			'referrer' => 'referrer.php',
-			'agent'    => 'user_agent.php',
+			'agent'    => 'user-agent.php',
 			'login'    => 'login.php',
 		 );
 	}
