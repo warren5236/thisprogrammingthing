@@ -1,19 +1,21 @@
 <?php
 /*
-Plugin Name: Google AdSense
-Plugin URI: http://bestwebsoft.com/plugin/
+Plugin Name: Google AdSense by BestWebSoft
+Plugin URI: http://bestwebsoft.com/products/
 Description: This plugin allows implementing Google AdSense to your website.
 Author: BestWebSoft
-Version: 1.25
+Text Domain: adsense-plugin
+Domain Path: /languages
+Version: 1.39
 Author URI: http://bestwebsoft.com/
 License: GPLv2 or later
 */
 
-/*  
-	© Copyright 2013  BestWebSoft  ( http://support.bestwebsoft.com )
+/*
+	© Copyright 2016  BestWebSoft  ( http://support.bestwebsoft.com )
 
     This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License, version 2, as 
+    it under the terms of the GNU General Public License, version 2, as
     published by the Free Software Foundation.
 
     This program is distributed in the hope that it will be useful,
@@ -26,75 +28,52 @@ License: GPLv2 or later
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-require_once( dirname( __FILE__ ) . '/bws_menu/bws_menu.php' );
 include_once( 'adsense-plugin.class.php' ); /* Including a class which contains a plugin functions */
-$this_adsns_plugin	=	plugin_basename(__FILE__); /* Path to this file(from plugins dir) */
-$adsns_plugin		=	new adsns(); /* Creating a variable with type of our class */
-$adsns_plugin->page_title	=	__( 'AdSense Settings', 'adsense' ); /* Title for options page */
-$adsns_plugin->menu_title	=	__( 'AdSense', 'adsense' ); /* Name in menu */
-/* This function showing ads at the choosen position */
-if ( ! function_exists ( 'adsns_show_ads' ) ) {
-	function adsns_show_ads() {
-		global $adsns_options, $max_ads, $count, $current_count, $adsns_count, $adsns_plugin;
-		$adsns_plugin->adsns_activate();
-		/* Checking in what position we should show an ads */
-		if ( 'postend' == $adsns_options['position'] ) { /* If we choose ad position after post(single page) */
-			add_filter( 'the_content', array( $adsns_plugin, 'adsns_end_post_ad' ) ); /* Adding ad after post */
-		}
-		else if ( 'homepostend' == $adsns_options['position'] ) { /* If we choose ad position after post(home page) */
-			add_filter( 'the_content', array( $adsns_plugin, 'adsns_end_home_post_ad' ) ); /* Adding ad after post */
-		}
-		else if ( 'homeandpostend' == $adsns_options['position'] ) { /* If we choose ad position after post(home page) */
-			add_filter( 'the_content', array( $adsns_plugin, 'adsns_end_home_post_ad' ) ); /* Adding ad after post */
-			add_filter( 'the_content', array( $adsns_plugin, 'adsns_end_post_ad' ) ); /* Adding ad after post */
-		}
-		else if ( 'commentform' == $adsns_options['position'] ) { /* If we choose ad position after comment form */
-			add_filter( 'comment_id_fields', array( $adsns_plugin, 'adsns_end_comment_ad' ) ); /* Adding ad after comment form */
-		}
-		else if ( 'footer' == $adsns_options['position'] ) { /* If we choose ad position in a footer */
-			add_filter( 'get_footer', array( $adsns_plugin, 'adsns_end_footer_ad' ) ); /* Adding footer ad */
-		}
-		/* End checking */
-	}
-}
-
-if ( ! function_exists ( 'adsns_plugin_init' ) ) {
-	function adsns_plugin_init() {
-		/* Internationalization */
-		load_plugin_textdomain( 'adsense', false, dirname( plugin_basename( __FILE__ ) ) . '/languages/' );
-		load_plugin_textdomain( 'bestwebsoft', false, dirname( plugin_basename( __FILE__ ) ) . '/bws_menu/languages/' ); 
-	}
-}
+$adsns_plugin =	new adsns(); /* Creating a variable with type of our class */
 
 /* Function fo uninstall */
-if ( ! function_exists ( 'adsns_uninstall' ) ) {
+if ( ! function_exists( 'adsns_uninstall' ) ) {
 	function adsns_uninstall() {
-		delete_option( 'adsns_settings' );
-		delete_site_option( 'adsns_settings' );
+        if ( function_exists( 'is_multisite' ) && is_multisite() ) {
+            global $wpdb;
+            $old_blog = $wpdb->blogid;
+            /* Get all blog ids */
+            $blogids = $wpdb->get_col( "SELECT `blog_id` FROM $wpdb->blogs" );
+            foreach ( $blogids as $blog_id ) {
+                switch_to_blog( $blog_id );
+                delete_option( 'adsns_settings' );
+            }
+            switch_to_blog( $old_blog );
+        } else {
+            delete_option( 'adsns_settings' );
+        }
+        
+        require_once( dirname( __FILE__ ) . '/bws_menu/bws_include.php' );
+        bws_include_init( plugin_basename( __FILE__ ) );
+        bws_delete_plugin( plugin_basename( __FILE__ ) );
 	}
 }
 
 /* Activation hook */
 register_activation_hook( __FILE__, array( $adsns_plugin, 'adsns_activate' ) );
-
-add_action( 'init', 'adsns_plugin_init' );
-add_action( 'init', array( $adsns_plugin, 'adsns_activate' ) );
-add_action( 'admin_init', array( $adsns_plugin, 'adsns_write_admin_head' ) );
-add_action( 'admin_init', array( $adsns_plugin, 'adsns_version_check' ) );
+/* Adding 'BWS Plugins' admin menu */
+add_action( 'admin_menu', array( $adsns_plugin, 'adsns_add_admin_menu' ) );
+add_action( 'init', array( $adsns_plugin, 'adsns_plugin_init') );
+/* Plugin localization */
+add_action( 'plugins_loaded', array( $adsns_plugin, 'adsns_localization' ) );
+add_action( 'admin_init', array( $adsns_plugin, 'adsns_plugin_admin_init') );
+add_action( 'admin_enqueue_scripts', array( $adsns_plugin, 'adsns_write_admin_head' ) );
 /* Action for adsns_show_ads */
-add_action( 'after_setup_theme', 'adsns_show_ads' );
+add_action( 'after_setup_theme', array( $adsns_plugin, 'adsns_show_ads' ) );
 /* Display the plugin widget */
 add_action( 'widgets_init', array( $adsns_plugin, 'adsns_register_widget' ) );
 /* Adding ads stylesheets */
-add_action( 'wp_head', array( $adsns_plugin, 'adsns_head' ) );
-/* Adding 'BWS Plugins' admin menu */
-add_action( 'admin_menu', array( $adsns_plugin, 'adsns_add_admin_menu' ) );
-
+add_action( 'wp_enqueue_scripts', array( $adsns_plugin, 'adsns_head' ) );
 /* Add "Settings" link to the plugin action page */
 add_filter( 'plugin_action_links', array( $adsns_plugin, 'adsns_plugin_action_links'), 10, 2 );
 /* Additional links on the plugin page */
 add_filter( 'plugin_row_meta', array( $adsns_plugin, 'adsns_register_plugin_links'), 10, 2 );
-
+/* Display notices */
+add_action( 'admin_notices', array( $adsns_plugin, 'adsns_plugin_notice') );
 /* When uninstall plugin */
 register_uninstall_hook( __FILE__, 'adsns_uninstall' );
-?>
